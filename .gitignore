@@ -43,7 +43,8 @@ dist
 
 # Gatsby files
 .cache/
-public
+# public (commented out for Vue.js - we need public/ directory)
+# public
 
 # Vue.js build outputs
 /dist/
