@@ -138,14 +138,35 @@ def fetch_airtable_records(url, headers):
 # Database helper functions
 ##########################
 
-def get_or_create_predio(cursor, nombre):
+def get_or_create_predio(cursor, predio_id):
+    """Lookup or create predio by its id (not nombre). 
+    
+    The Airtable 'Origen' field contains the predio id (e.g. '59400').
+    If the predio exists by id, return it; otherwise create a new predio 
+    with that id and a default nombre.
+    """
     table = 'moviles_predios'
-    cursor.execute(f"SELECT id FROM {table} WHERE nombre = %s", (nombre,))
+    if not predio_id:
+        return None
+    
+    # Try to parse as int
+    try:
+        pid = int(predio_id)
+    except Exception:
+        # If it's not numeric, return None (or you can insert with that string as nombre)
+        return None
+    
+    # Check if predio with this id exists
+    cursor.execute(f"SELECT id FROM {table} WHERE id = %s", (pid,))
     row = cursor.fetchone()
     if row:
         return row[0]
-    cursor.execute(f"INSERT INTO {table} (nombre) VALUES (%s)", (nombre,))
-    return cursor.lastrowid
+    
+    # Create new predio with given id and a default nombre
+    # Note: if your schema has id as auto-increment, you may need to adjust this logic
+    # For now, we'll insert with explicit id
+    cursor.execute(f"INSERT INTO {table} (id, nombre) VALUES (%s, %s)", (pid, f"Predio {pid}"))
+    return cursor.lastrowid if cursor.lastrowid else pid
 
 
 def get_or_create_personal(cursor, cuit, fields, empresa_id=None):
@@ -293,12 +314,34 @@ def map_destino(raw):
     return val
 
 
-def insert_viaje(cursor, movil_id, cliente_id, area_id, fecha, origen_id, destino, producto, tn_pulpable, tn_aserrable, tn_chip, sin_actividad, motivo, observaciones):
+def get_numeric_field(fields, candidates, default=0.0):
+    """Try multiple candidate keys in fields and coerce to float safely."""
+    for key in candidates:
+        if key in fields:
+            v = fields.get(key)
+            try:
+                return float(v or 0)
+            except Exception:
+                # Try to extract numeric from string
+                try:
+                    import re
+
+                    s = str(v)
+                    m = re.search(r"[-+]?[0-9]*\.?[0-9]+", s.replace(',', '.'))
+                    if m:
+                        return float(m.group(0))
+                except Exception:
+                    continue
+    return float(default)
+
+
+def insert_viaje(cursor, movil_id, cliente_id, area_id, fecha, origen_id, destino, producto, tn_pulpable, tn_aserrable, tn_chip, sin_actividad, motivo, observaciones, personal_id):
     table = 'moviles_viajes'
     cursor.execute(
         f"""
-        INSERT INTO {table} (movil_id, cliente_id, area_id, fecha, origen_id, destino, producto, tn_pulpable, tn_aserrable, tn_chip, sin_actividad, motivo_sin_actividad, observaciones)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO {table} (movil_id, cliente_id, area_id, fecha, origen_id, destino, producto, tn_pulpable, tn_aserrable, tn_chip, 
+        sin_actividad, motivo_sin_actividad, observaciones, personal_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """,
         (
             movil_id,
@@ -314,6 +357,7 @@ def insert_viaje(cursor, movil_id, cliente_id, area_id, fecha, origen_id, destin
             sin_actividad,
             motivo,
             observaciones,
+            personal_id
         ),
     )
     return cursor.lastrowid
@@ -425,13 +469,15 @@ def main():
                 except Exception:
                     fecha = None
 
-        # Resolve origen predio name (may be an object or a string)
-        origen_nombre = None
+        # Resolve origen predio id (Airtable sends predio id in 'Origen' field, e.g. '59400')
+        origen_value = None
         origen_field = fields.get('Origen') or fields.get('origen')
         if isinstance(origen_field, dict):
-            origen_nombre = origen_field.get('name') or origen_field.get('Nombre')
+            # If it's an object, try common keys for id
+            origen_value = origen_field.get('id') or origen_field.get('Id') or origen_field.get('ID')
         else:
-            origen_nombre = origen_field
+            # Otherwise, treat the value as the predio id directly
+            origen_value = origen_field
 
         # Destino and producto
         raw_destino = fields.get('Destino') or fields.get('destino') or ''
@@ -439,25 +485,23 @@ def main():
         producto = fields.get('Producto') or fields.get('producto') or ''
 
         # Quantities
-        try:
-            tn_pulpable = float(fields.get('TN_Pulpable', 0) or 0)
-        except Exception:
-            tn_pulpable = 0.0
-        try:
-            tn_aserrable = float(fields.get('TN_Rollos', fields.get('TN_Aserrable', 0)) or 0)
-        except Exception:
-            tn_aserrable = 0.0
-        try:
-            tn_chip = float(fields.get('TN_Chips', fields.get('TN_Chip', 0)) or 0)
-        except Exception:
-            tn_chip = 0.0
+        tn_pulpable = get_numeric_field(fields, ['TNPulpable', 'TN_Pulpable', 'TNPulpable', 'TNPulpable', 'TNPulpable', 'TNPulpable', 'TNPulpable', 'TNPulpable', 'TNPulpable', 'TNPulpable', 'TNPulpable', 'TNPulpable', 'TN_Pulpable', 'TNPulpable', 'TNPulpable', 'TNPulpable', 'TNPulpable', 'TN Pulpable', 'TNPulpable', 'TNPulpable', 'TNPulpable', 'TNPulpable', 'TNPulpable', 'TNPulpable'], 0)
+        tn_aserrable = get_numeric_field(fields, ['TNAserrable', 'TN_Aserrable', 'TN_Rollos', 'TNAserrable', 'TNAserrable', 'TNAserrable', 'TNAserrable'], 0)
+        tn_chip = get_numeric_field(fields, ['TNChips', 'TN_Chips', 'TN_Chip', 'TNChips', 'TNChips'], 0)
 
         sin_actividad = bool(fields.get('Sin_Actividad') or fields.get('sin_actividad') or False)
         motivo = fields.get('Motivo_Sin_Actividad') or fields.get('motivo') or None
         observaciones = fields.get('Observaciones') or fields.get('observaciones') or None
 
-        # Chofer lookup by CUIT
+        # Chofer lookup by CUIT. If CUIT isn't in its own field but 'Chofer' contains a numeric CUIT, use that.
         cuit = fields.get('CUIT') or fields.get('Cuit') or fields.get('cuit') or fields.get('Chofer_CUIT')
+        chofer_field = fields.get('Chofer') or fields.get('chofer') or ''
+        # If cuit is missing and chofer_field looks like a numeric CUIT (10-12 digits), use it
+        if not cuit and chofer_field:
+            import re
+            m = re.search(r"(\d{10,12})", str(chofer_field))
+            if m:
+                cuit = m.group(1)
 
         # Patente: try multiple extraction strategies
         patente_raw = fields.get('Patente') or fields.get('patente')
@@ -468,10 +512,10 @@ def main():
         if not patente:
             print({"warning": "missing_patente", "record_id": record.get('id'), "raw": patente_raw, "found_in": found_in})
 
-        # Ensure origin predio exists
+        # Ensure origin predio exists (lookup/create by predio id)
         origen_id = None
-        if origen_nombre:
-            origen_id = get_or_create_predio(cursor, origen_nombre)
+        if origen_value:
+            origen_id = get_or_create_predio(cursor, origen_value)
 
         # Ensure personal (chofer) exists (by cuit). If no cuit, try name lookup by 'Chofer'
         personal_id = None
@@ -572,6 +616,10 @@ def main():
             # Map chofer: prefer chofer_id if present
             if 'chofer_id' in cols and personal_id:
                 insert_cols.append('chofer_id')
+                insert_vals.append(personal_id)
+            # Also map personal_id column if present (user requested mapping from chofer)
+            if 'personal_id' in cols and personal_id:
+                insert_cols.append('personal_id')
                 insert_vals.append(personal_id)
 
             if 'record_id' in cols:

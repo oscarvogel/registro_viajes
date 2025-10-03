@@ -80,15 +80,15 @@
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
-          <label class="block text-sm font-medium text-gray-700">TN Pulpable</label>
+          <label class="block text-sm font-medium text-gray-700">KG Pulpable</label>
           <input v-model.number="tn_pulpable" type="number" :disabled="isChipsSelected" class="mt-1 block w-full rounded-lg border border-gray-200 px-3 py-2 disabled:opacity-50" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700">TN Rollos (Aserrable)</label>
+          <label class="block text-sm font-medium text-gray-700">KG Rollos (Aserrable)</label>
           <input v-model.number="tn_rollos" type="number" :disabled="isChipsSelected" class="mt-1 block w-full rounded-lg border border-gray-200 px-3 py-2 disabled:opacity-50" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700">TN Chips</label>
+          <label class="block text-sm font-medium text-gray-700">KG Chips</label>
           <input v-model.number="tn_chips" type="number" :disabled="!isChipsSelected" class="mt-1 block w-full rounded-lg border border-gray-200 px-3 py-2 disabled:opacity-50" />
         </div>
       </div>
@@ -419,10 +419,13 @@ export default {
     },
     // sincronización gestionada desde la pantalla de Pendientes
     formIsValid() {
-      // require fecha as well
+      // require fecha always
       const fechaOk = !!this.viajeFecha;
-      if (!fechaOk || !this.choferSeleccionado || !this.camionSeleccionado || !this.origen || !this.destino) return false;
-      if (this.sinActividad && !this.motivoSeleccionado) return false;
+      if (!fechaOk) return false;
+      // If 'sinActividad' is marked, allow save with only the date
+      if (this.sinActividad) return true;
+      // Otherwise require the normal fields
+      if (!this.choferSeleccionado || !this.camionSeleccionado || !this.origen || !this.destino) return false;
       return true;
     }
   }
