@@ -5,22 +5,28 @@
     <div v-else>
       <div class="mb-4 flex items-center justify-between gap-3">
         <div class="text-sm text-gray-700">Pendientes: <span class="font-medium">{{ items.length }}</span></div>
-        <button @click="syncAll" :disabled="items.length===0 || isSyncingAll" class="px-3 py-2 bg-indigo-600 text-white rounded flex items-center gap-2 disabled:opacity-50">
-          <template v-if="isSyncingAll">
-            <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"></path>
-            </svg>
-            <span>Sincronizando ({{ syncedCount }} / {{ totalToSync }})</span>
-          </template>
-          <template v-else>
-            <!-- sync all icon (valid path) -->
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M20 4l-4 4M4 20l4-4" />
-            </svg>
-            <span>Sincronizar todo</span>
-          </template>
-        </button>
+        <div class="flex items-center gap-2">
+          <button @click="exportToExcel" :disabled="items.length===0" class="px-3 py-2 bg-green-600 text-white rounded flex items-center gap-2 disabled:opacity-50">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-9 14H8v-2h2v2zm0-4H8V7h2v6zm4 4h-2v-4h2v4zm0-6h-2V7h2v2z"/></svg>
+            <span>Exportar</span>
+          </button>
+          <button @click="syncAll" :disabled="items.length===0 || isSyncingAll" class="px-3 py-2 bg-indigo-600 text-white rounded flex items-center gap-2 disabled:opacity-50">
+            <template v-if="isSyncingAll">
+              <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"></path>
+              </svg>
+              <span>Sincronizando ({{ syncedCount }} / {{ totalToSync }})</span>
+            </template>
+            <template v-else>
+              <!-- sync all icon (valid path) -->
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M20 4l-4 4M4 20l4-4" />
+              </svg>
+              <span>Sincronizar todo</span>
+            </template>
+          </button>
+        </div>
       </div>
       <div v-if="items.length === 0" class="text-gray-600">No hay viajes pendientes.</div>
       <ul class="space-y-3">
@@ -46,6 +52,7 @@
 import localforage from 'localforage';
 import axios from 'axios';
 import log from '../utils/log';
+import * as XLSX from 'xlsx';
 
 export default {
   name: 'PendingList',
@@ -203,6 +210,43 @@ export default {
       this.isSyncingAll = false;
       this.totalToSync = 0;
       this.syncedCount = 0;
+    },
+
+    async exportToExcel() {
+      const keys = await localforage.keys();
+      const rows = [];
+      for (const key of keys) {
+        const v = await localforage.getItem(key);
+        if (!v) continue;
+        rows.push({
+          ID: key,
+          Fecha: v.fecha || '',
+          DNI: v.dni || (v.chofer && v.chofer.dni) || '',
+          Patente: v.patente || (v.camion && v.camion.patente) || '',
+          Origen: v.origen || '',
+          Destino: v.destino || '',
+          Sin_Actividad: !!v.sinActividad,
+          Motivo: v.motivoSinActividad || '',
+          Observaciones: v.observaciones || '',
+          Producto: v.productos?.tipo || '',
+          TN_Pulpable: v.productos?.pulpable ?? 0,
+          TN_Rollos: v.productos?.rollos ?? 0,
+          TN_Chips: v.productos?.chips ?? 0,
+          Sincronizado: !!v.sincronizado
+        });
+      }
+
+      if (rows.length === 0) {
+        window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'No hay viajes para exportar' } }));
+        return;
+      }
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Viajes');
+      const fname = `viajes_export_${new Date().toISOString().slice(0,10)}.xlsx`;
+      XLSX.writeFileXLSX(wb, fname);
+      window.dispatchEvent(new CustomEvent('toast', { detail: { message: `Exportado ${rows.length} viajes a ${fname}` } }));
     },
 
     async removeOne(key) {

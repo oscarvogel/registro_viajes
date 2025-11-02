@@ -225,6 +225,9 @@ def get_or_create_movil(cursor, patente, fields, empresa_id=None):
             anio = int(anio_val)
     except Exception:
         anio = None
+    # Ensure anio is non-null to avoid inserting NULL into NOT NULL column; use 0 as safe default
+    if anio is None:
+        anio = 0
 
     cursor.execute(
         f"INSERT INTO {table} (empresa_id, patente, marca, modelo, anio, baja) VALUES (%s, %s, %s, %s, %s, %s)",
@@ -586,7 +589,7 @@ def main():
             if 'fecha' in cols:
                 insert_cols.append('fecha')
                 insert_vals.append(fecha)
-            if 'origen_id' in cols:
+            if 'origen_id' in cols and not sin_actividad and origen_id is not None:
                 insert_cols.append('origen_id')
                 insert_vals.append(origen_id)
             if 'destino' in cols:
