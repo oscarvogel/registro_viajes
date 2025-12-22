@@ -142,6 +142,7 @@
 <script>
 import localforage from 'localforage';
 import log from '../utils/log';
+import { getCurrentUser } from '../utils/authService';
 
 export default {
   data() {
@@ -384,6 +385,9 @@ export default {
         // determine final motivo (only from motivos.json)
         const motivoFinal = this.sinActividad ? (this.motivoSeleccionado || '') : '';
 
+        // Obtener usuario actual
+        const currentUser = await getCurrentUser();
+
           const viaje = {
             // save date-only string locally (YYYY-MM-DD)
             fecha: fechaOnly,
@@ -402,6 +406,9 @@ export default {
               rollos: this.tn_rollos,
               chips: this.tn_chips
             },
+            // Agregar datos del usuario
+            usuario: currentUser?.usuario || '',
+            cliente_id: currentUser?.cliente_id || '',
             sincronizado: false
           };
 

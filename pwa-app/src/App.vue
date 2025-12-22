@@ -1,6 +1,22 @@
 <template>
-  <div id="app" class="min-h-screen bg-gradient-to-b from-white to-gray-100 text-gray-900 flex flex-col">
-    <ToastContainer />
+  <ToastContainer />
+  
+  <!-- Mostrar login si no está autenticado -->
+  <LoginForm v-if="!isAuthenticated" @login-success="handleLoginSuccess" />
+
+  <!-- Contenido principal si está autenticado -->
+  <div v-else id="app" class="min-h-screen bg-gradient-to-b from-white to-gray-100 text-gray-900 flex flex-col">
+    <!-- Header con info de usuario -->
+    <div class="bg-indigo-600 text-white px-4 py-2 flex justify-between items-center">
+      <div>
+        <p class="text-sm font-semibold">{{ currentUser?.usuario }}</p>
+        <p class="text-xs opacity-80">Cliente: {{ currentUser?.cliente_id }}</p>
+      </div>
+      <button @click="handleLogout" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded">
+        Cerrar Sesión
+      </button>
+    </div>
+
     <header class="bg-transparent">
       <div class="max-w-xl mx-auto px-4 py-4 flex items-center justify-between">
         <div class="flex items-center gap-3">
@@ -69,7 +85,9 @@
 import ViajeForm from './components/ViajeForm.vue';
 import ToastContainer from './components/ToastContainer.vue';
 import PendingList from './components/PendingList.vue';
+import LoginForm from './components/LoginForm.vue';
 import localforage from 'localforage';
+import { isLoggedIn, getCurrentUser, logout } from './utils/authService';
 
 export default {
   name: 'App',
@@ -77,15 +95,23 @@ export default {
     ViajeForm,
   // Configuracion removed per request
     ToastContainer,
-    PendingList
+    PendingList,
+    LoginForm
   },
   data() {
     return {
       mostrar: 'viaje', // 'viaje' | 'config' | 'pending'
-      pendingCount: 0
+      pendingCount: 0,
+      isAuthenticated: false,
+      currentUser: null
     };
   },
   async mounted() {
+    // Verificar si hay sesión activa
+    if (await isLoggedIn()) {
+      this.isAuthenticated = true;
+      this.currentUser = await getCurrentUser();
+    }
     await this.updatePendingCount();
     window.addEventListener('count-update', this.updatePendingCount);
   },
@@ -105,6 +131,16 @@ export default {
       } catch (err) {
         console.error('Error counting pending items', err);
       }
+    },
+    async handleLoginSuccess(user) {
+      this.isAuthenticated = true;
+      this.currentUser = user;
+    },
+    async handleLogout() {
+      await logout();
+      this.isAuthenticated = false;
+      this.currentUser = null;
+      window.location.reload();
     }
   }
 };
