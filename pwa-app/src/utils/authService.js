@@ -37,19 +37,45 @@ export async function syncUsuariosFromAirtable() {
     
     console.log('✅ Respuesta recibida:', resp.data);
     
-    const usuarios = resp.data.records.map(r => ({
+    // Mapear y filtrar usuarios válidos
+    const usuariosSinFiltrar = resp.data.records.map(r => ({
       id: r.id,
       usuario: r.fields.usuario || r.fields.Usuario,
       cliente_id: r.fields.cliente_id || r.fields['cliente_id'],
       password: r.fields.password || r.fields.Password
     }));
     
-    console.log('📋 Usuarios procesados:', usuarios.length);
-    console.log('Primer usuario (sin password):', {
-      id: usuarios[0]?.id,
-      usuario: usuarios[0]?.usuario,
-      cliente_id: usuarios[0]?.cliente_id
+    // Filtrar usuarios vacíos o incompletos
+    const usuarios = usuariosSinFiltrar.filter(u => {
+      const esValido = u.usuario && u.usuario.trim() !== '' && 
+                       u.cliente_id && u.cliente_id.toString().trim() !== '' && 
+                       u.password && u.password.trim() !== '';
+      
+      if (!esValido) {
+        console.warn('⚠️ Usuario inválido descartado:', {
+          id: u.id,
+          usuario: u.usuario || '(vacío)',
+          cliente_id: u.cliente_id || '(vacío)',
+          tienePassword: !!u.password
+        });
+      }
+      
+      return esValido;
     });
+    
+    console.log(`📋 Usuarios procesados: ${usuarios.length} válidos de ${usuariosSinFiltrar.length} totales`);
+    if (usuarios.length > 0) {
+      console.log('Primer usuario válido (sin password):', {
+        id: usuarios[0]?.id,
+        usuario: usuarios[0]?.usuario,
+        cliente_id: usuarios[0]?.cliente_id
+      });
+    }
+    
+    // Validar que haya al menos un usuario
+    if (usuarios.length === 0) {
+      throw new Error('No se encontraron usuarios válidos en Airtable');
+    }
     
     await localforage.setItem('usuarios_data', {
       usuarios,
