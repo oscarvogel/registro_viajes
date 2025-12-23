@@ -7,44 +7,50 @@
       </div>
 
       <!-- Formulario de login -->
-      <form @submit.prevent="login" class="space-y-4">
-        <!-- Botón de sincronización integrado -->
-        <div class="mb-4">
-          <button 
-            type="button"
-            @click="sincronizarUsuarios" 
-            :disabled="isSyncing"
-            class="w-full px-4 py-3 bg-[#64764C] text-white rounded-lg shadow hover:bg-[#59753A] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+      <!-- Botón de sincronización integrado -->
+      <div class="mb-4">
+        <button 
+          type="button"
+          @click="sincronizarUsuarios" 
+          :disabled="isSyncing"
+          class="w-full px-4 py-3 bg-[#64764C] text-white rounded-lg shadow hover:bg-[#59753A] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke-width="1.5" 
+            stroke="currentColor" 
+            class="w-5 h-5"
+            :class="{ 'animate-spin': isSyncing }"
           >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke-width="1.5" 
-              stroke="currentColor" 
-              class="w-5 h-5"
-              :class="{ 'animate-spin': isSyncing }"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-            </svg>
-            <span>{{ isSyncing ? 'Sincronizando...' : 'Sincronizar Usuarios' }}</span>
-          </button>
-          <p class="text-xs text-gray-500 mt-2 text-center">
-            {{ usuariosCargados ? `${usuarios.length} usuario(s) disponible(s)` : 'Sincronice para cargar usuarios' }}
-          </p>
-          <p v-if="lastSync" class="text-xs text-gray-400 mt-1 text-center">
-            Última sincronización: {{ formatDate(lastSync) }}
-          </p>
-        </div>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+          </svg>
+          <span>{{ isSyncing ? 'Sincronizando...' : 'Sincronizar Usuarios' }}</span>
+        </button>
+        <p class="text-xs text-gray-500 mt-2 text-center">
+          {{ usuariosCargados ? `${usuarios.length} usuario(s) disponible(s)` : 'Sincronice para cargar usuarios' }}
+        </p>
+        <p v-if="lastSync" class="text-xs text-gray-400 mt-1 text-center">
+          Última sincronización: {{ formatDate(lastSync) }}
+        </p>
+      </div>
+
+      <!-- Formulario con animación -->
+      <transition
+        enter-active-class="transition-all duration-500 ease-out"
+        enter-from-class="opacity-0 transform translate-y-4"
+        enter-to-class="opacity-100 transform translate-y-0"
+      >
+        <form v-if="usuariosCargados" @submit.prevent="login" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
           <select 
             v-model="usuarioSeleccionado" 
             required
-            :disabled="!usuariosCargados"
-            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#59753A] disabled:opacity-50 disabled:bg-gray-100"
+            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#59753A] transition-all"
           >
-            <option value="">{{ usuariosCargados ? 'Seleccione un usuario' : 'Sincronice usuarios primero' }}</option>
+            <option value="">Seleccione un usuario</option>
             <option v-for="u in usuarios" :key="u.id" :value="u.usuario">
               {{ u.usuario }}
             </option>
@@ -57,24 +63,24 @@
             v-model="password" 
             type="password"
             required
-            :disabled="!usuariosCargados"
             placeholder="Ingrese su contraseña"
-            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#59753A] disabled:opacity-50 disabled:bg-gray-100"
+            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#59753A] transition-all"
           />
         </div>
 
-        <div v-if="errorMsg" class="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">
+        <div v-if="errorMsg" class="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm animate-shake">
           {{ errorMsg }}
         </div>
 
         <button 
           type="submit" 
-          :disabled="isLoggingIn || !usuariosCargados"
-          class="w-full px-4 py-3 bg-[#374128] text-white rounded-lg shadow hover:bg-[#64764C] disabled:opacity-50 font-medium"
+          :disabled="isLoggingIn"
+          class="w-full px-4 py-3 bg-[#374128] text-white rounded-lg shadow hover:bg-[#64764C] disabled:opacity-50 font-medium transition-all"
         >
           {{ isLoggingIn ? 'Iniciando sesión...' : 'Iniciar Sesión' }}
         </button>
       </form>
+      </transition>
     </div>
   </div>
 </template>
@@ -186,19 +192,14 @@ export default {
 .animate-spin {
   animation: spin 1s linear infinite;
 }
-</style>
 
-<style scoped>
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
 }
 
-.animate-spin {
-  animation: spin 1s linear infinite;
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
 }
 </style>
