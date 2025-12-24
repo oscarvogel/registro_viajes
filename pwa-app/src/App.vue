@@ -5,9 +5,9 @@
   <LoginForm v-if="!isAuthenticated" @login-success="handleLoginSuccess" />
 
   <!-- Contenido principal si está autenticado -->
-  <div v-else id="app" class="min-h-screen bg-gradient-to-b from-white to-gray-100 text-gray-900 flex flex-col">
+  <div v-else id="app" class="min-h-screen bg-gradient-to-b from-[#DCE7CF] to-[#8F9A7C] text-gray-900 flex flex-col">
     <!-- Header con info de usuario -->
-    <div class="bg-indigo-600 text-white px-4 py-2 flex justify-between items-center">
+    <div class="bg-[#374128] text-white px-4 py-2 flex justify-between items-center">
       <div>
         <p class="text-sm font-semibold">{{ currentUser?.usuario }}</p>
         <p class="text-xs opacity-80">Cliente: {{ currentUser?.cliente_id }}</p>
@@ -40,8 +40,8 @@
           <div class="flex items-center justify-between mb-3">
             <h2 class="text-lg font-semibold">{{ mostrar === 'viaje' ? 'Registrar Viaje' : 'Pendientes de sincronización' }}</h2>
             <div class="hidden sm:flex space-x-2">
-              <button @click="mostrar = 'viaje'" :class="mostrar === 'viaje' ? 'px-3 py-1 rounded bg-blue-600 text-white' : 'px-3 py-1 rounded border bg-white'">Viaje</button>
-              <button @click="mostrar = 'pending'" :class="mostrar === 'pending' ? 'px-3 py-1 rounded bg-blue-600 text-white' : 'px-3 py-1 rounded border bg-white'">Pendientes</button>
+              <button @click="mostrar = 'viaje'" :class="mostrar === 'viaje' ? 'px-3 py-1 rounded bg-[#374128] text-white' : 'px-3 py-1 rounded border border-[#8F9A7C] bg-white text-[#374128]'">Viaje</button>
+              <button @click="mostrar = 'pending'" :class="mostrar === 'pending' ? 'px-3 py-1 rounded bg-[#374128] text-white' : 'px-3 py-1 rounded border border-[#8F9A7C] bg-white text-[#374128]'">Pendientes</button>
             </div>
           </div>
 
@@ -57,7 +57,7 @@
     <nav class="fixed bottom-4 left-0 right-0 flex justify-center pointer-events-none">
       <div class="w-full max-w-xl px-4">
         <div class="bg-white/90 backdrop-blur rounded-3xl shadow-lg flex justify-between items-center px-3 py-2 pointer-events-auto">
-          <button @click="mostrar = 'viaje'" class="flex-1 flex flex-col items-center justify-center py-2 rounded-md" :class="mostrar === 'viaje' ? 'bg-blue-600 text-white' : 'text-gray-700'" aria-label="Registrar">
+          <button @click="mostrar = 'viaje'" class="flex-1 flex flex-col items-center justify-center py-2 rounded-md" :class="mostrar === 'viaje' ? 'bg-[#374128] text-white' : 'text-[#64764C]'" aria-label="Registrar">
             <!-- truck/clipboard icon -->
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h13l4 4v7a1 1 0 01-1 1h-1a2 2 0 11-4 0H9a2 2 0 11-4 0H4a1 1 0 01-1-1V7z" />
@@ -68,7 +68,7 @@
 
           <!-- Config button removed -->
 
-          <button @click="mostrar = 'pending'" class="flex-1 flex flex-col items-center justify-center py-2 rounded-md ml-2" :class="mostrar === 'pending' ? 'bg-blue-600 text-white' : 'text-gray-700'" aria-label="Pendientes">
+          <button @click="mostrar = 'pending'" class="flex-1 flex flex-col items-center justify-center py-2 rounded-md ml-2" :class="mostrar === 'pending' ? 'bg-[#374128] text-white' : 'text-[#64764C]'" aria-label="Pendientes">
             <!-- list icon -->
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
