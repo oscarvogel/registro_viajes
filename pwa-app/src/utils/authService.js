@@ -5,6 +5,8 @@ const AIRTABLE_BASE = import.meta.env.VITE_AIRTABLE_BASE_ID;
 const AIRTABLE_TOKEN = import.meta.env.VITE_AIRTABLE_TOKEN;
 const USUARIOS_TABLE = import.meta.env.VITE_AIRTABLE_USUARIOS_TABLE || 'Usuarios';
 const USUARIOS_VIEW = import.meta.env.VITE_AIRTABLE_USUARIOS_VIEW;
+const CAMIONES_TABLE = import.meta.env.VITE_AIRTABLE_CAMIONES_TABLE || 'Camiones';
+const CHOFER_TABLE = import.meta.env.VITE_AIRTABLE_CHOFER_TABLE || 'Chofer';
 
 // Sincronizar usuarios desde Airtable
 export async function syncUsuariosFromAirtable() {
@@ -116,7 +118,104 @@ export async function getUsuarios() {
   return [];
 }
 
-// Validar credenciales
+// Sincronizar camiones filtrados por cliente_id
+export async function syncCamionesByCliente(cliente_id) {
+  console.log(`🚛 Sincronizando camiones para cliente: ${cliente_id}`);
+  
+  try {
+    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE}/${encodeURIComponent(CAMIONES_TABLE)}`;
+    
+    const resp = await axios.get(url, {
+      headers: { 
+        Authorization: `Bearer ${AIRTABLE_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        filterByFormula: `{cliente_id} = '${cliente_id}'`
+      },
+      timeout: 15000
+    });
+    
+    const camiones = resp.data.records.map(r => ({
+      id: r.id,
+      patente: r.fields.patente || '',
+      modelo: r.fields.modelo || '',
+      cliente_id: r.fields.cliente_id || ''
+    }));
+    
+    await localforage.setItem(`camiones_${cliente_id}`, {
+      camiones,
+      lastSync: new Date().toISOString()
+    });
+    
+    console.log(`✅ ${camiones.length} camiones sincronizados para cliente ${cliente_id}`);
+    
+    return { success: true, count: camiones.length };
+  } catch (err) {
+    console.error('❌ Error sincronizando camiones:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+// Sincronizar choferes filtrados por cliente_id
+export async function syncChoferesByCliente(cliente_id) {
+  console.log(`👤 Sincronizando choferes para cliente: ${cliente_id}`);
+  
+  try {
+    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE}/${encodeURIComponent(CHOFER_TABLE)}`;
+    
+    const resp = await axios.get(url, {
+      headers: { 
+        Authorization: `Bearer ${AIRTABLE_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        filterByFormula: `{cliente_id} = '${cliente_id}'`
+      },
+      timeout: 15000
+    });
+    
+    const choferes = resp.data.records.map(r => ({
+      id: r.id,
+      nombre: r.fields.nombre || '',
+      apellido: r.fields.apellido || '',
+      dni: r.fields.dni || '',
+      cliente_id: r.fields.cliente_id || ''
+    }));
+    
+    await localforage.setItem(`choferes_${cliente_id}`, {
+      choferes,
+      lastSync: new Date().toISOString()
+    });
+    
+    console.log(`✅ ${choferes.length} choferes sincronizados para cliente ${cliente_id}`);
+    
+    return { success: true, count: choferes.length };
+  } catch (err) {
+    console.error('❌ Error sincronizando choferes:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+// Obtener camiones del cliente desde localStorage
+export async function getCamionesByCliente(cliente_id) {
+  const cached = await localforage.getItem(`camiones_${cliente_id}`);
+  if (cached && cached.camiones) {
+    return cached.camiones;
+  }
+  return [];
+}
+
+// Obtener choferes del cliente desde localStorage
+export async function getChoferesByCliente(cliente_id) {
+  const cached = await localforage.getItem(`choferes_${cliente_id}`);
+  if (cached && cached.choferes) {
+    return cached.choferes;
+  }
+  return [];
+}
+
+// Validar credenciales y sincronizar datos del cliente
 export async function validateLogin(usuario, password) {
   const usuarios = await getUsuarios();
   const user = usuarios.find(u => u.usuario === usuario);
@@ -127,6 +226,21 @@ export async function validateLogin(usuario, password) {
   
   if (user.password !== password) {
     return { success: false, error: 'Contraseña incorrecta' };
+  }
+  
+  // Sincronizar camiones y choferes del cliente en background
+  console.log(`🔄 Sincronizando datos para cliente ${user.cliente_id}...`);
+  
+  try {
+    const [camionesResult, choferesResult] = await Promise.all([
+      syncCamionesByCliente(user.cliente_id),
+      syncChoferesByCliente(user.cliente_id)
+    ]);
+    
+    console.log('Resultados sincronización:', { camiones: camionesResult, choferes: choferesResult });
+  } catch (err) {
+    console.warn('⚠️ Error en sincronización de datos maestros:', err);
+    // No bloqueamos el login si falla la sincronización
   }
   
   // Guardar sesión

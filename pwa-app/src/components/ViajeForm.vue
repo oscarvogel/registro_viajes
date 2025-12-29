@@ -142,7 +142,7 @@
 <script>
 import localforage from 'localforage';
 import log from '../utils/log';
-import { getCurrentUser } from '../utils/authService';
+import { getCurrentUser, getCamionesByCliente, getChoferesByCliente } from '../utils/authService';
 
 export default {
   data() {
@@ -201,6 +201,19 @@ export default {
     }
   },
   async mounted() {
+    // Obtener usuario actual para filtrar por cliente_id
+    const currentUser = await getCurrentUser();
+    
+    if (!currentUser || !currentUser.cliente_id) {
+      console.error('No hay usuario logueado o falta cliente_id');
+      window.dispatchEvent(new CustomEvent('toast', { 
+        detail: { message: 'Error: No hay usuario logueado' } 
+      }));
+      return;
+    }
+    
+    console.log(`Cargando datos para cliente: ${currentUser.cliente_id}`);
+    
     // cargar lista de productos desde public/data
     try {
       const base = import.meta.env.BASE_URL || '/';
@@ -211,23 +224,26 @@ export default {
       this.productosList = [];
     }
     
-    // Cargar choferes y camiones desde public/data
+    // Cargar choferes y camiones filtrados por cliente_id desde localStorage
     try {
-      const base = import.meta.env.BASE_URL || '/';
-      const rc = await fetch(`${base}data/choferes.json`);
-      if (rc.ok) this.choferes = await rc.json();
+      this.choferes = await getChoferesByCliente(currentUser.cliente_id);
+      this.camiones = await getCamionesByCliente(currentUser.cliente_id);
+      
+      console.log(`Choferes cargados: ${this.choferes.length}`);
+      console.log(`Camiones cargados: ${this.camiones.length}`);
+      
+      // Si no hay datos, mostrar mensaje
+      if (this.choferes.length === 0 || this.camiones.length === 0) {
+        window.dispatchEvent(new CustomEvent('toast', { 
+          detail: { message: 'No se encontraron choferes o camiones asignados a su cliente.' } 
+        }));
+      }
     } catch (err) {
-      log.warn('No se pudo cargar choferes.json', err);
+      log.error('Error cargando choferes/camiones:', err);
       this.choferes = [];
-    }
-    try {
-      const base = import.meta.env.BASE_URL || '/';
-      const rm = await fetch(`${base}data/camiones.json`);
-      if (rm.ok) this.camiones = await rm.json();
-    } catch (err) {
-      log.warn('No se pudo cargar camiones.json', err);
       this.camiones = [];
     }
+    
     // Cargar lista de predios desde public/data/predios.json
     try {
       const base = import.meta.env.BASE_URL || '/';

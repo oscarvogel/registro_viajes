@@ -129,7 +129,7 @@ export default {
         if (result.success) {
           await this.cargarUsuariosDesdeCache();
           window.dispatchEvent(new CustomEvent('toast', { 
-            detail: { message: `✅ ${result.count} usuarios sincronizados` } 
+            detail: { message: `${result.count} usuarios sincronizados correctamente` } 
           }));
         } else {
           this.errorMsg = `Error al sincronizar: ${result.error}`;
@@ -146,12 +146,17 @@ export default {
       this.errorMsg = '';
       
       try {
+        // Mostrar mensaje de sincronización
+        window.dispatchEvent(new CustomEvent('toast', { 
+          detail: { message: 'Validando credenciales y sincronizando datos...' } 
+        }));
+        
         const result = await validateLogin(this.usuarioSeleccionado, this.password);
         
         if (result.success) {
           this.$emit('login-success', result.user);
           window.dispatchEvent(new CustomEvent('toast', { 
-            detail: { message: `✅ Bienvenido ${result.user.usuario}` } 
+            detail: { message: `Bienvenido ${result.user.usuario}` } 
           }));
         } else {
           this.errorMsg = result.error;
