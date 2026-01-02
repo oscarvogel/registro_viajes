@@ -3,14 +3,15 @@
     <h2 class="text-lg font-semibold mb-4">Pendientes de sincronización</h2>
     <div v-if="loading">Cargando...</div>
     <div v-else>
-      <div class="mb-4 flex items-center justify-between gap-3">
-        <div class="text-sm text-gray-700">Pendientes: <span class="font-medium">{{ items.length }}</span></div>
-        <div class="flex items-center gap-2">
-          <button @click="exportToExcel" :disabled="items.length===0" class="px-3 py-2 bg-green-600 text-white rounded flex items-center gap-2 disabled:opacity-50">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-9 14H8v-2h2v2zm0-4H8V7h2v6zm4 4h-2v-4h2v4zm0-6h-2V7h2v2z"/></svg>
-            <span>Exportar</span>
-          </button>
-          <button @click="syncAll" :disabled="items.length===0 || isSyncingAll" class="px-3 py-2 bg-indigo-600 text-white rounded flex items-center gap-2 disabled:opacity-50">
+      <div class="mb-4 flex flex-col gap-2">
+        <div class="flex items-center justify-between gap-3">
+          <div class="text-sm text-gray-700">Pendientes: <span class="font-medium">{{ items.length }}</span></div>
+          <div class="flex items-center gap-2">
+            <button @click="exportToExcel" :disabled="items.length===0" class="px-3 py-2 bg-green-600 text-white rounded flex items-center gap-2 disabled:opacity-50">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-9 14H8v-2h2v2zm0-4H8V7h2v6zm4 4h-2v-4h2v4zm0-6h-2V7h2v2z"/></svg>
+              <span>Exportar</span>
+            </button>
+            <button @click="syncAll" :disabled="items.length===0 || isSyncingAll" class="px-3 py-2 bg-indigo-600 text-white rounded flex items-center gap-2 disabled:opacity-50">
             <template v-if="isSyncingAll">
               <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -28,13 +29,25 @@
           </button>
         </div>
       </div>
+      <div v-if="emptyItems.length > 0" class="flex items-center justify-between gap-3 p-3 bg-yellow-50 rounded border border-yellow-200">
+        <div class="text-sm text-yellow-800">
+          <strong>{{ emptyItems.length }}</strong> registro(s) vacío(s) o incompleto(s) detectado(s)
+        </div>
+        <button @click="removeEmptyItems" class="px-3 py-2 bg-red-600 text-white rounded flex items-center gap-2 text-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+          </svg>
+          <span>Limpiar vacíos</span>
+        </button>
+      </div>
+    </div>
       <div v-if="items.length === 0" class="text-gray-600">No hay viajes pendientes.</div>
       <ul class="space-y-3">
-        <li v-for="it in items" :key="it.key" class="p-3 bg-white rounded shadow flex justify-between items-start">
+        <li v-for="it in items" :key="it.key" class="p-3 bg-white rounded shadow flex justify-between items-start" :class="{ 'border-2 border-red-200 bg-red-50': isEmptyOrIncomplete(it.viaje) }">
           <div>
-            <div class="text-sm text-gray-700"><strong>Fecha:</strong> {{ it.viaje.fecha }}</div>
-            <div class="text-sm text-gray-700"><strong>Origen:</strong> {{ it.viaje.origen }} — <span class="font-medium">{{ it.viaje.destino }}</span></div>
-            <div class="text-sm text-gray-500">DNI: {{ it.viaje.dni }} | Patente: {{ it.viaje.patente }}</div>
+            <div class="text-sm text-gray-700"><strong>Fecha:</strong> {{ it.viaje.fecha || '(vacío)' }}</div>
+            <div class="text-sm text-gray-700"><strong>Origen:</strong> {{ it.viaje.origen || '—' }} — <span class="font-medium">{{ it.viaje.destino || '—' }}</span></div>
+            <div class="text-sm text-gray-500">DNI: {{ it.viaje.dni || '(vacío)' }} | Patente: {{ it.viaje.patente || '(vacío)' }}</div>
             <div v-if="it.viaje.sinActividad" class="mt-2 text-sm text-yellow-700"><strong>Sin actividad</strong> — <span class="font-normal">{{ it.viaje.motivoSinActividad || '-' }}</span></div>
             <p v-if="it.viaje.observaciones" class="mt-2 text-sm text-gray-600 italic">Observaciones: <span class="font-normal not-italic">{{ it.viaje.observaciones }}</span></p>
           </div>
@@ -58,6 +71,11 @@ export default {
   name: 'PendingList',
   data() {
     return { items: [], loading: true, isSyncingAll: false, totalToSync: 0, syncedCount: 0 };
+  },
+  computed: {
+    emptyItems() {
+      return this.items.filter(it => this.isEmptyOrIncomplete(it.viaje));
+    }
   },
   async mounted() {
     await this.loadItems();
@@ -150,6 +168,9 @@ export default {
       const keys = await localforage.keys();
       const list = [];
       for (const key of keys) {
+        // Filtrar claves del sistema (no son viajes)
+        if (this.isSystemKey(key)) continue;
+        
         const v = await localforage.getItem(key);
         if (v && !v.sincronizado) list.push({ key, viaje: v });
       }
@@ -181,6 +202,9 @@ export default {
       const keys = await localforage.keys();
       const toSync = [];
       for (const key of keys) {
+        // Filtrar claves del sistema (no son viajes)
+        if (this.isSystemKey(key)) continue;
+        
         const v = await localforage.getItem(key);
         if (v && !v.sincronizado) toSync.push({ key, viaje: v });
       }
@@ -216,6 +240,9 @@ export default {
       const keys = await localforage.keys();
       const rows = [];
       for (const key of keys) {
+        // Filtrar claves del sistema (no son viajes)
+        if (this.isSystemKey(key)) continue;
+        
         const v = await localforage.getItem(key);
         if (!v) continue;
         rows.push({
@@ -252,6 +279,53 @@ export default {
     async removeOne(key) {
       await localforage.removeItem(key);
       window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Eliminado: ' + key } }));
+      await this.loadItems();
+      window.dispatchEvent(new CustomEvent('count-update'));
+    },
+
+    isSystemKey(key) {
+      // Claves del sistema que no son viajes
+      const systemKeys = [
+        'current_user',
+        'usuarios_data',
+        'camiones_',
+        'choferes_'
+      ];
+      
+      // Verificar si la clave es una clave del sistema
+      return systemKeys.some(sysKey => key.startsWith(sysKey) || key === sysKey);
+    },
+
+    isEmptyOrIncomplete(viaje) {
+      // Un viaje es considerado vacío o incompleto si:
+      // - No tiene fecha, o
+      // - Está marcado como sin actividad pero no tiene motivo, o
+      // - No está marcado como sin actividad pero le faltan campos requeridos
+      if (!viaje.fecha) return true;
+      if (viaje.sinActividad && !viaje.motivoSinActividad) return true;
+      if (!viaje.sinActividad && (!viaje.dni || !viaje.patente || !viaje.origen || !viaje.destino)) return true;
+      return false;
+    },
+
+    async removeEmptyItems() {
+      const toRemove = this.emptyItems;
+      if (toRemove.length === 0) return;
+      
+      if (!confirm(`¿Está seguro de eliminar ${toRemove.length} registro(s) vacío(s) o incompleto(s)?`)) {
+        return;
+      }
+
+      let removed = 0;
+      for (const it of toRemove) {
+        try {
+          await localforage.removeItem(it.key);
+          removed++;
+        } catch (err) {
+          log.error('Error eliminando registro vacío', it.key, err);
+        }
+      }
+
+      window.dispatchEvent(new CustomEvent('toast', { detail: { message: `Eliminados ${removed} registro(s) vacío(s)` } }));
       await this.loadItems();
       window.dispatchEvent(new CustomEvent('count-update'));
     }

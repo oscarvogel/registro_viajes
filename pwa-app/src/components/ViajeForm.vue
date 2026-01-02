@@ -356,7 +356,7 @@ export default {
     },
     async guardarViaje() {
     if (!this.formIsValid()) {
-  window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Por favor, complete Fecha, Camión, Chofer, Origen y Destino. Si marcó "Sin actividad" ingrese el motivo.' } }));
+  window.dispatchEvent(new CustomEvent('toast', { detail: { message: this.sinActividad ? 'Por favor, complete Fecha y seleccione un Motivo.' : 'Por favor, complete Fecha, Camión, Chofer, Origen y Destino.' } }));
         return;
       }
       this.isSaving = true;
@@ -366,6 +366,9 @@ export default {
           const keysNow = await localforage.keys();
           let pendingNow = 0;
           for (const k of keysNow) {
+            // Filtrar claves del sistema (no son viajes)
+            if (this.isSystemKey(k)) continue;
+            
             const v = await localforage.getItem(k);
             if (v && !v.sincronizado) pendingNow++;
           }
@@ -441,12 +444,27 @@ export default {
       }
     },
     // sincronización gestionada desde la pantalla de Pendientes
+    isSystemKey(key) {
+      // Claves del sistema que no son viajes
+      const systemKeys = [
+        'current_user',
+        'usuarios_data',
+        'camiones_',
+        'choferes_'
+      ];
+      
+      // Verificar si la clave es una clave del sistema
+      return systemKeys.some(sysKey => key.startsWith(sysKey) || key === sysKey);
+    },
+    
     formIsValid() {
       // require fecha always
       const fechaOk = !!this.viajeFecha;
       if (!fechaOk) return false;
-      // If 'sinActividad' is marked, allow save with only the date
-      if (this.sinActividad) return true;
+      // If 'sinActividad' is marked, require motivo
+      if (this.sinActividad) {
+        return !!this.motivoSeleccionado;
+      }
       // Otherwise require the normal fields
       if (!this.choferSeleccionado || !this.camionSeleccionado || !this.origen || !this.destino) return false;
       return true;
