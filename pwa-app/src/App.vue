@@ -119,11 +119,27 @@ export default {
     window.removeEventListener('count-update', this.updatePendingCount);
   },
   methods: {
+    isSystemKey(key) {
+      // Claves del sistema que no son viajes
+      const systemKeys = [
+        'current_user',
+        'usuarios_data',
+        'camiones_',
+        'choferes_'
+      ];
+      
+      // Verificar si la clave es una clave del sistema
+      return systemKeys.some(sysKey => key.startsWith(sysKey) || key === sysKey);
+    },
+    
     async updatePendingCount() {
       try {
         const keys = await localforage.keys();
         let c = 0;
         for (const key of keys) {
+          // Filtrar claves del sistema (no son viajes)
+          if (this.isSystemKey(key)) continue;
+          
           const v = await localforage.getItem(key);
           if (v && !v.sincronizado) c++;
         }
